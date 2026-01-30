@@ -1,0 +1,83 @@
+#!/bin/bash
+LOG_PATH="${AIC_LOG:-/var/log/aic8800_install.log}"
+mkdir -p "$(dirname "$LOG_PATH")"
+exec > >(tee -a "$LOG_PATH") 2>&1
+
+echo "===== [$(date '+%F %T')] aic8800 postinst start ====="
+echo "kernel: $(uname -r)"
+echo "arch: $(uname -m)"
+echo "AIC_DEBUG=${AIC_DEBUG:-0}"
+echo "LOG_PATH=${LOG_PATH}"
+
+MAKE_FLAGS=""
+if [ "${AIC_DEBUG:-0}" = "1" ]; then
+    set -x
+    MAKE_FLAGS="V=1"
+fi
+
+Main_version=`uname -r |awk -F'.' '{print $1}'`
+Minor_version=`uname -r |awk -F'.' '{print $2}'`
+
+if command -v lsusb >/dev/null 2>&1; then
+    echo "lsusb (aic/tp):"
+    lsusb | grep -Ei "aic|aicsemi|2357|a69c" || true
+fi
+
+echo "[1/7] install udev rules"
+cp /AIC8800/aic.rules /etc/udev/rules.d
+udevadm trigger
+udevadm control --reload
+echo "udev done"
+if [ -L /dev/aicudisk ]; then
+echo "device exist"
+eject /dev/aicudisk
+else
+echo "device not exist"
+fi
+echo "[2/7] copy firmware"
+cd /AIC8800/fw/
+rm -rf /lib/firmware/aic8800DC
+cp -rf /AIC8800/fw/aic8800DC /lib/firmware/
+echo "cp fw done"
+echo "[3/7] build kernel modules"
+cd /AIC8800/drivers/aic8800/
+make ${MAKE_FLAGS}
+if [ $? -ne 0 ]; then
+    echo "make failed, install aic8800 wifi drvier failed"
+    exit 1
+fi
+echo "[4/7] install kernel modules"
+make install ${MAKE_FLAGS}
+if [ $? -ne 0 ]; then
+    echo "make install failed, install aic8800 wifi driver failed"
+    exit 1
+fi
+echo "[5/7] load modules"
+modprobe cfg80211
+insmod /AIC8800/drivers/aic8800/aic_load_fw/aic_load_fw.ko
+if [ $? -ne 0 ]; then
+    echo "insmode aic_load_fw failed, install aic8800 wifi driver failed"
+    exit 1
+fi
+insmod /AIC8800/drivers/aic8800/aic8800_fdrv/aic8800_fdrv.ko
+if [ $? -ne 0 ]; then
+    echo "insmod aic8800_fdrv failed, install aic8800 wifi drvier failed"
+    exit 1
+fi
+echo "insmod done"
+echo "[6/7] build rftest tools"
+cd /AIC8800/aicrf_test/
+make ${MAKE_FLAGS}
+if [ $? -ne 0 ]; then
+    echo "make failed, install aic8800 wifi driver failed"
+    exit 1
+fi
+echo "[7/7] install rftest tools"
+make install ${MAKE_FLAGS}
+if [ $? -ne 0 ]; then
+    echo "make install failed, install aic8800 wifi driver failed"
+    exit 1
+fi
+echo "Install aic8800 wifi driver successful!!!!!"
+echo "===== [$(date '+%F %T')] aic8800 postinst end ====="
+exit 0

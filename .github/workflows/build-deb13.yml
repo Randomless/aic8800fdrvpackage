@@ -1,0 +1,43 @@
+name: debian13-build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container:
+      image: debian:trixie-slim
+    steps:
+      - name: Install deps
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential \
+            linux-headers-amd64 \
+            kmod \
+            ca-certificates
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build kernel modules
+        run: |
+          cd src/AIC8800/drivers/aic8800
+          make
+          make install
+      - name: Build rftest tools
+        run: |
+          cd src/AIC8800/aicrf_test
+          make
+      - name: Build deb package
+        run: |
+          chmod 755 src/DEBIAN
+          chmod 755 src/DEBIAN/*
+          dpkg-deb -b src aic8800fdrvpackage_linux_$(uname -r)_amd64.deb
+      - name: Verify deb exists
+        run: |
+          test -s aic8800fdrvpackage_linux_$(uname -r)_amd64.deb
+          echo aic8800fdrvpackage_linux_$(uname -r)_amd64.deb exists!
