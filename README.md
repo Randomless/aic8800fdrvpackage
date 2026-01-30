@@ -2,10 +2,8 @@
 
 Mercury UX3H（AX300）无线网卡 Linux 驱动，基于官方驱动包整理与适配。
 
-Mercury UX3H(免驱版)(一点也不免驱) AX300 Ubuntu24.04 Linux kernel 6.8.0 amd64 驱动
+Mercury UX3H(免驱版)(一点也不免驱) AX300 Debian13 Linux kernel 6.12 amd64 驱动
 基于 [水星官方驱动](https://service.mercurycom.com.cn/download-2596.html) 修改
-
-### deb 版：https://github.com/bk1d/aic8800fdrvpackage/releases
 
 ### 自己编译：
 #### Step 1:
